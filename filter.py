@@ -12,13 +12,12 @@ def get_hosts(zapi, group_name):
     if group_response:
         group_id = group_response[0]['groupid']
 
-        # Получение хостов в группе
         hosts_response = zapi.host.get({
             "output": ["hostid", "host"],
             "groupids": group_id
         })
 
-        # Вывод информации о хостах
+
         if hosts_response:
             print(f"Устройства в группе '{group_name}':")
             for host in hosts_response:
@@ -30,26 +29,8 @@ def get_hosts(zapi, group_name):
 
 
 
-
-
-
-
-
-
-
-
 with open('config.json') as data_file:
     data = json.load(data_file)
-
-
-
-
-
-
-
-
-
-
 
 try:
     # Подключение к Zabbix API
