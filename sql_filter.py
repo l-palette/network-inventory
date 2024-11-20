@@ -1,41 +1,43 @@
 import sqlite3
 import subprocess
 import netmiko
-def execute_snmpwalk(ip_address, command):
+
+
+def execute_snmpwalk(ip_address, community_string):
+    """Выполнение SNMP-walk для заданного IP-адреса и строка сообщества"""
+    command = ['snmpwalk', '-v2c', f'-c{community_string}', ip_address, '1.3.6.1.2.1.1.1.0']
     try:
-        output = subprocess.check_output(command, shell=True)  # Добавлено shell=True для выполнения команды
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT)
         return output.decode(errors='ignore').splitlines()
     except subprocess.CalledProcessError as e:
-        print(f"Error for IP {ip_address}: {e.output.decode(errors='ignore').strip()}")
+        print(f"Ошибка для IP {ip_address}: {e.output.decode(errors='ignore').strip()}")
         return []
     except UnicodeDecodeError as e:
-        print(f"Unicode decode error for IP {ip_address}: {e}")
+        print(f"Ошибка декодирования для IP {ip_address}: {e}")
         return []
     except Exception as e:
-        print(f"An unexpected error occurred for IP {ip_address}: {e}")
+        print(f"Неожиданная ошибка для IP {ip_address}: {e}")
         return []
-def get_device_type(device):
-    pass
-def connect_ssh(ip_address, command):
+
+
+def connect_ssh(ip_address, type, command):
+    """Подключение к устройству по SSH и выполнение команды"""
+    device = {
+        "device_type": type,
+        "ip": ip_address,
+        "username": "admin",
+        "password": "72HeccrfZ,72"
+    }
     try:
-        device = {
-            "device_type": "generic",
-            "ip": ip_address,
-            "username": "admin",
-            "password": "72HeccrfZ,72"
-        }
-        ssh_connection = netmiko.ConnectHandler(**device)
-        output = ssh_connection.send_command(command)
-        ssh_connection.disconnect()
-        return output.splitlines()
+        with netmiko.ConnectHandler(**device) as ssh_connection:
+            return ssh_connection.send_command(command).splitlines()
     except Exception as e:
         print(f"Ошибка подключения к устройству {ip_address}: {e}")
         return []
-    
-    
-    
-    
+
+
 def get_ips(cursor, group_name):
+    """Получение IP-адресов устройств из указанной группы"""
     devices = []
     try:
         cursor.execute('''
@@ -47,39 +49,64 @@ def get_ips(cursor, group_name):
         ''', (group_name,))
 
         results = cursor.fetchall()
-        if results:
-            print(f"Хосты в группе '{group_name}':")
-            for host in results:
-                devices.append(host[0])
+        devices = [host[0] for host in results]
+        if devices:
+            print(f"Хосты в группе '{group_name}': {devices}")
         else:
             print(f"В группе '{group_name}' нет хостов.")
     except sqlite3.Error as e:
         print(f"Ошибка при выполнении SQL-запроса для группы '{group_name}': {e}")
     return devices
 
-# Подключение к базе данных
-conn = sqlite3.connect('zabbix_hosts.db')
-cursor = conn.cursor()
+def get_device_type(cursor, device_name):
+    """Получение типа устройства по его имени"""
+    device_type = None
+    try:
+        cursor.execute('''
+        SELECT h.type
+        FROM hosts h
+        WHERE h.host =?;
+        ''', (device_name,))
 
-try:
-    for group_name in ["ДЦ Респ. 55  Коммутаторы", "ДЦ Респ. 55  Маршрутизаторы"]:
-        devices = get_ips(cursor, group_name)
-        if devices:
+        result = cursor.fetchone()
+        if result:
+            device_type = result[0]
+    except sqlite3.Error as e:
+        print(f"Ошибка при выполнении SQL-запроса для устройства '{device_name}': {e}")
+    return device_type
+
+def main():
+    conn = sqlite3.connect('zabbix_hosts.db')
+    cursor = conn.cursor()
+
+    communities = ['sysadmin', 'russcom', 'public']
+    
+    try:
+        group_names = ["ДЦ Респ. 55  Коммутаторы", "ДЦ Респ. 55  Маршрутизаторы"]
+        for group_name in group_names:
+            devices = get_ips(cursor, group_name)
             for device in devices:
-                command = f"snmpwalk -v 2c -c sysadmin {device} 1.3.6.1.2.1.1.1.0"
-                output = execute_snmpwalk(device, command)
-                if output:
-                    print(output)
-                else:
-                    command = "show system"
-                    output = connect_ssh(device, command)
+                for community in communities:
+                    output = execute_snmpwalk(device, community)
                     if output:
                         print(output)
-                
-except Exception as e:
-    print(f"Ошибка: {e}")
+                        break
+                else:
+                    type_ = get_device_type(cursor, device)
+                    print(type_)
+                    if type_ == "mikrotik":
+                        type_ = "mikrotik_routeros"
+                    command = "show system"
+                    output = connect_ssh(device, type_, command)
+                    if output:
+                        print(output)
 
-finally:
-    # Закрытие соединения с базой данных
-    cursor.close()
-    conn.close()
+    except Exception as e:
+        print(f"Ошибка: {e}")
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+main()
