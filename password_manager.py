@@ -127,7 +127,7 @@ class PasswordManager:
         group = self.device_group_entry.get()
 
         if ip_address and model:
-            # Создание нового hostid (можно настроить свою логику создания уникальных идентификаторов)
+            # Создание нового hostid
             hostid = ip_address
 
             self.cursor.execute('INSERT OR REPLACE INTO hosts (hostid, host, type) VALUES (?, ?, ?)', 
