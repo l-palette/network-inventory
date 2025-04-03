@@ -36,8 +36,8 @@ try:
     # Подключение к Zabbix API
     zapi = ZabbixAPI(f"http://{data['address']}")
     zapi.login(data['login']['user'], data['login']['password'])
-    get_hosts(zapi,"ДЦ Респ. 55  Коммутаторы")
-    get_hosts(zapi,"ДЦ Респ. 55  Маршрутизаторы")
+    get_hosts(zapi, "Коммутаторы")
+    get_hosts(zapi, "Маршрутизаторы")
 
    
 
