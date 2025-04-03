@@ -4,7 +4,7 @@ import netmiko
 
 
 def execute_snmpwalk(ip_address, community_string):
-    """Выполнение SNMP-walk для заданного IP-адреса и строка сообщества"""
+    """Выполнение SNMP-walk для заданного IP-адреса и строка community"""
     command = ['snmpwalk', '-v2c', f'-c{community_string}', ip_address, '1.3.6.1.2.1.1.1.0']
     try:
         output = subprocess.check_output(command, stderr=subprocess.STDOUT)
@@ -26,7 +26,7 @@ def connect_ssh(ip_address, type, command):
         "device_type": type,
         "ip": ip_address,
         "username": "admin",
-        "password": "72HeccrfZ,72"
+        "password": "password"
     }
     try:
         with netmiko.ConnectHandler(**device) as ssh_connection:
@@ -79,10 +79,10 @@ def main():
     conn = sqlite3.connect('zabbix_hosts.db')
     cursor = conn.cursor()
 
-    communities = ['sysadmin', 'russcom', 'public']
+    communities = ['public']
     
     try:
-        group_names = ["ДЦ Респ. 55  Коммутаторы", "ДЦ Респ. 55  Маршрутизаторы"]
+        group_names = ["Коммутаторы", "Маршрутизаторы"]
         for group_name in group_names:
             devices = get_ips(cursor, group_name)
             for device in devices:
